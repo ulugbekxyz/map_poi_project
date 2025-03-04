@@ -1,0 +1,77 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <title>Карта точек интереса</title>
+    <!-- Подключение стилей Leaflet -->
+    <link rel="stylesheet" href="https://unpkg.com/leaflet/dist/leaflet.css" />
+    <style>
+        #map { height: 500px; }
+        body { font-family: Arial, sans-serif; margin: 20px; }
+        form { margin-top: 20px; }
+        label { display: block; margin-bottom: 10px; }
+    </style>
+</head>
+<body>
+    <h1>Карта точек интереса</h1>
+    <div id="map"></div>
+
+    <h2>Добавить новую точку</h2>
+    <form id="poiForm">
+        <label>Название: <input type="text" id="name" required></label>
+        <label>Описание: <textarea id="description"></textarea></label>
+        <label>Широта: <input type="text" id="lat" required></label>
+        <label>Долгота: <input type="text" id="lng" required></label>
+        <button type="submit">Добавить точку</button>
+    </form>
+
+    <!-- Подключение скриптов Leaflet -->
+    <script src="https://unpkg.com/leaflet/dist/leaflet.js"></script>
+    <script>
+        // Инициализация карты с центром по Москве
+        var map = L.map('map').setView([55.7522, 37.6156], 10);
+        L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', {
+            attribution: '© OpenStreetMap contributors'
+        }).addTo(map);
+
+        // Добавляем точки, загруженные из базы данных
+        var pois = {{ pois | tojson }};
+        pois.forEach(function(poi) {
+            L.marker([poi.lat, poi.lng]).addTo(map)
+              .bindPopup('<b>' + poi.name + '</b><br>' + poi.description);
+        });
+
+        // Обработчик отправки формы для добавления точки
+        document.getElementById('poiForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            var name = document.getElementById('name').value;
+            var description = document.getElementById('description').value;
+            var lat = parseFloat(document.getElementById('lat').value);
+            var lng = parseFloat(document.getElementById('lng').value);
+
+            fetch('/add_poi', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ name: name, description: description, lat: lat, lng: lng })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if(data.success) {
+                    // Добавляем маркер на карту после успешного сохранения
+                    L.marker([lat, lng]).addTo(map)
+                      .bindPopup('<b>' + name + '</b><br>' + description);
+                    alert('Точка успешно добавлена!');
+                } else {
+                    alert('Ошибка при добавлении точки.');
+                }
+            });
+        });
+
+        // При клике на карте заполняем поля координат
+        map.on('click', function(e) {
+            document.getElementById('lat').value = e.latlng.lat.toFixed(6);
+            document.getElementById('lng').value = e.latlng.lng.toFixed(6);
+        });
+    </script>
+</body>
+</html>
